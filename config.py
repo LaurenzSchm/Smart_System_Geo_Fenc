@@ -1,4 +1,4 @@
-_# config.py
+# config.py
 
 # Serielle Schnittstelle
 SERIAL_PORT = 'COM9'
@@ -37,24 +37,25 @@ MAP_W_RATIO = 0.56
 RIGHT_SIDEBAR_W_RATIO = 0.22
 
 MAP_OFFSET_X = WINDOW_W * LEFT_SIDEBAR_W_RATIO
-MAP_WIDTH = WINDOW_W * MAP_W_RATIO
+MAP_WIDTH    = WINDOW_W * MAP_W_RATIO
 
 # ----------------------------------------
 # STYLING
 # ----------------------------------------
 STYLE = {
-    "background_color": "#0d0d0d",
-    "primary_text_color": "#00ffcc",
-    "secondary_text_color": "#00aaff",
-    "grid_color": "#1e1e1e",
-    "safe_zone_pen_color": "#00b4ff",
+    "background_color":      "#0d0d0d",
+    "primary_text_color":    "#00ffcc",
+    "secondary_text_color":  "#00aaff",
+    "grid_color":            "#1e1e1e",
+    "safe_zone_pen_color":   "#00b4ff",
     "safe_zone_brush_color": "#003c64",
-    "safe_zone_glow_color": "#00b4ff",
-    "tag_safe_color": "#00ff64",
-    "tag_unsafe_color": "#ff3232",
-    "sidebar_bg_color": "#0a0a0a",
-    "sidebar_border_color": "#006496",
-    "title_font": ("Consolas", 12, 700), # Family, Size, Weight
-    "body_font": ("Consolas", 10)
+    "safe_zone_glow_color":  "#00b4ff",
+    "tag_safe_color":        "#00ff64",
+    "tag_unsafe_color":      "#ff3232",
+    "sidebar_bg_color":      "#0a0a0a",
+    "sidebar_border_color":  "#006496",
+    "title_font":            ("Consolas", 12, 700),
+    "body_font":             ("Consolas", 10)
 }
+
 
