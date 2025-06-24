@@ -78,9 +78,9 @@ def create_point_item() -> QtWidgets.QGraphicsEllipseItem:
     ellipse.setZValue(1) # Sicherstellen, dass der Punkt über dem Raster ist
     return ellipse
 
-def create_sidebar(x_pos, width) -> QtWidgets.QGraphicsRectItem:
-    """ Erstellt den Hintergrund für eine Seitenleiste. """
-    rect = QtCore.QRectF(x_pos, 10, width, WINDOW_H - 20)
+def create_sidebar(x_pos, width, y_pos, height) -> QtWidgets.QGraphicsRectItem:
+    """Erstellt den Hintergrund für eine Seitenleiste an beliebiger Position."""
+    rect = QtCore.QRectF(x_pos, y_pos, width, height)
     bg = QtWidgets.QGraphicsRectItem(rect)
     bg.setBrush(QtGui.QBrush(QtGui.QColor(STYLE["sidebar_bg_color"])))
     bg.setPen(QtGui.QPen(QtGui.QColor(STYLE["sidebar_border_color"]), 2))

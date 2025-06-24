@@ -1,4 +1,4 @@
-_# config.py
+# config.py
 
 # Serielle Schnittstelle
 SERIAL_PORT = 'COM9'

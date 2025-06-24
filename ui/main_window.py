@@ -62,22 +62,29 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         return item
         
     def _create_left_sidebar(self):
-        width = WINDOW_W * LEFT_SIDEBAR_W_RATIO - 20
-        self.scene.addItem(create_sidebar(10, width))
+        # Both sidebars will be stacked vertically on the left, each half the window height
+        sidebar_width = WINDOW_W * LEFT_SIDEBAR_W_RATIO - 20
+        sidebar_height = (WINDOW_H // 2) - 10
+
+        # Top sidebar: SYSTEM STATUS
+        self.scene.addItem(create_sidebar(10, sidebar_width, 10, sidebar_height))
         self._create_text_item("SYSTEM STATUS", (20, 20), STYLE["secondary_text_color"], STYLE["title_font"])
         self.signal_text = self._create_text_item("Signal: --%", (20, 60))
         self.battery_text = self._create_text_item("Battery: --%", (20, 90))
         self.uptime_text = self._create_text_item("Uptime: 00:00:00", (20, 120))
 
     def _create_right_sidebar(self):
-        x0 = self.canvas.to_canvas_coords(0, 0).x() + MAP_WIDTH + 10
-        width = WINDOW_W * (1 - LEFT_SIDEBAR_W_RATIO - MAP_WIDTH / WINDOW_W) - 20
-        self.scene.addItem(create_sidebar(x0, width))
-        self._create_text_item("METRICS", (x0 + 10, 20), STYLE["secondary_text_color"], STYLE["title_font"])
-        self.datetime_text = self._create_text_item("Date/Time: --:--:--", (x0 + 10, 60))
-        self.tagcount_text = self._create_text_item(f"Tags: 1 ({self.tag.id})", (x0 + 10, 90))
-        self.datarate_text = self._create_text_item("Data Rate: -- kb/s", (x0 + 10, 120))
-    
+        # Bottom sidebar: METRICS, placed directly below the SYSTEM STATUS sidebar
+        sidebar_width = WINDOW_W * LEFT_SIDEBAR_W_RATIO - 20
+        sidebar_height = (WINDOW_H // 2) - 10
+        y_offset = (WINDOW_H // 2) + 10
+
+        self.scene.addItem(create_sidebar(10, sidebar_width, y_offset, sidebar_height))
+        self._create_text_item("METRICS", (20, y_offset + 10), STYLE["secondary_text_color"], STYLE["title_font"])
+        self.datetime_text = self._create_text_item("Date/Time: --:--:--", (20, y_offset + 50))
+        self.tagcount_text = self._create_text_item(f"Tags: 1 ({self.tag.id})", (20, y_offset + 80))
+        self.datarate_text = self._create_text_item("Data Rate: -- kb/s", (20, y_offset + 110))
+        
     def handle_serial_error(self, message):
         """ Zeigt einen Fehler von der seriellen Verbindung an. """
         self.status_bar.showMessage(message)
