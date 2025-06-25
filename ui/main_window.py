@@ -2,13 +2,15 @@
 
 import time
 from PyQt6 import QtCore, QtGui, QtWidgets
-from config import WINDOW_W, WINDOW_H, STYLE, LEFT_SIDEBAR_W_RATIO, MAP_WIDTH, TARGET_TAG_ID
+from config import WINDOW_W, WINDOW_H, STYLE, LEFT_SIDEBAR_W_RATIO, MAP_WIDTH, MAP_OFFSET_X, TARGET_TAG_ID
 from models import Tag
-from .components import MapCanvas, draw_grid, create_safebox_item, create_point_item, create_sidebar
+from .components import MapCanvas, create_safebox_item, create_point_item, create_sidebar
+
 
 class SafespaceWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        self.safebox_item = None
         
         self.tag = Tag(TARGET_TAG_ID)
         self.canvas = MapCanvas()
@@ -17,10 +19,14 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         self._setup_ui()
         self._create_layout()
         
+        self.grid_items = []
+        
         # Timer für UI-Updates, die nicht von Daten abhängen (z.B. Uptime)
         self.ui_timer = QtCore.QTimer(self)
         self.ui_timer.timeout.connect(self.update_timed_widgets)
         self.ui_timer.start(1000) # Update jede Sekunde
+        
+        
 
     def _setup_ui(self):
         """ Grundlegende Fensterkonfiguration. """
@@ -42,16 +48,71 @@ class SafespaceWindow(QtWidgets.QMainWindow):
             f"font: 11pt '{STYLE['body_font'][0]}';"
         )
         self.status_bar.showMessage("Warte auf Daten...")
+        
+        # Botón de rotación en la esquina inferior derecha
+        self.rotate_btn = QtWidgets.QPushButton("↻", self)
+        self.rotate_btn.setFixedSize(140, 36)
+        self.rotate_btn.move(WINDOW_W - 160, WINDOW_H - 72)
+        self.rotate_btn.setStyleSheet(
+            "background-color: #222; color: #00ffcc; border-radius: 8px; font: 11pt Consolas;"
+        )
+        self.rotate_btn.clicked.connect(self.rotate_grid)
+        self.rotate_btn.raise_()  # Asegura que esté encima
+
 
     def _create_layout(self):
         """ Erstellt und platziert alle grafischen Elemente. """
-        draw_grid(self.scene, self.canvas)
-        self.scene.addItem(create_safebox_item(self.canvas))
+        self._draw_grid_and_zone()
         self.point_item = create_point_item()
         self.scene.addItem(self.point_item)
-        
         self._create_left_sidebar()
         self._create_right_sidebar()
+        
+    def _draw_grid_and_zone(self):
+        # Elimina el safebox anterior si existe
+        if self.safebox_item is not None:
+            self.scene.removeItem(self.safebox_item)
+            self.safebox_item = None
+
+        # Elimina líneas del grid anteriores
+        for item in getattr(self, "grid_items", []):
+            self.scene.removeItem(item)
+        self.grid_items = []
+
+        grid_lines = []
+        pen = QtGui.QPen(QtGui.QColor(STYLE["grid_color"]), 1, QtCore.Qt.PenStyle.DotLine)
+        canvas = self.canvas
+        # Verticales
+        for i in range(int(canvas.max_x_display) + 1):
+            x_real = float(i)
+            if x_real >= canvas.min_x_display:
+                pt = canvas.to_canvas_coords(x_real, canvas.min_y_display)
+                line = self.scene.addLine(pt.x(), 0, pt.x(), WINDOW_H, pen)
+                grid_lines.append(line)
+        # Horizontales
+        for i in range(int(canvas.max_y_display) + 1):
+            y_real = float(i)
+            if y_real >= canvas.min_y_display:
+                pt = canvas.to_canvas_coords(canvas.min_x_display, y_real)
+                line = self.scene.addLine(MAP_OFFSET_X, pt.y(), MAP_OFFSET_X + MAP_WIDTH, pt.y(), pen)
+                grid_lines.append(line)
+        # Zona de seguridad
+        safebox = create_safebox_item(self.canvas)
+        self.scene.addItem(safebox)
+        self.safebox_item = safebox
+        grid_lines.append(safebox)
+        self.grid_items = grid_lines
+        
+    def rotate_grid(self):
+        """ Rota el grid y actualiza la posición del punto. """
+        new_rotation = (self.canvas.rotation + 90) % 360
+        self.canvas.set_rotation(new_rotation)
+        self._draw_grid_and_zone()
+        # Actualiza la posición del punto
+        pt = self.canvas.to_canvas_coords(self.tag.x, self.tag.y)
+        self.point_item.setPos(pt)
+
+
         
     def _create_text_item(self, text, pos, color=STYLE["primary_text_color"], font=STYLE["body_font"]):
         item = QtWidgets.QGraphicsTextItem(text)
