@@ -19,10 +19,10 @@ ANCHOR_Y1 = 11.6
 
 # Sicherheitszone (1m vom Rand der Anker)
 SAFESPACE_BORDERS = {
-    "min_x": ANCHOR_X0 + 1.0,
-    "max_x": ANCHOR_X1 - 1.0,
-    "min_y": ANCHOR_Y0 + 1.0,
-    "max_y": ANCHOR_Y1 - 1.0
+    "min_x": ANCHOR_X0 + 2.0,
+    "max_x": ANCHOR_X1 - 2.0,
+    "min_y": ANCHOR_Y0 + 2.0,
+    "max_y": ANCHOR_Y1 - 2.0
 }
 
 # ----------------------------------------
