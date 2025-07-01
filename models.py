@@ -54,7 +54,7 @@ class Tag:
         self.last_update_time: float = 0.0
         self.distance_tracker = DistanceTracker()
 
-    def update_position(self, x: float, y: float, z: float, zone: Zone) -> None:
+    def update_position(self, x: float, y: float, z: float, zone: 'Zone') -> None:
         """Aktualisiert Position, Zonenstatus und Distanz."""
         self.x = x
         self.y = y
