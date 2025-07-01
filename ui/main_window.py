@@ -1,5 +1,3 @@
-# ui/main_window.py
-
 import time
 from PyQt6 import QtCore, QtGui, QtWidgets
 from config import WINDOW_W, WINDOW_H, STYLE, LEFT_SIDEBAR_W_RATIO, MAP_WIDTH, TARGET_TAG_ID
@@ -16,6 +14,14 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         
         self._setup_ui()
         self._create_layout()
+
+        # Pfad-Trail initialisieren
+        self.trail_path = QtGui.QPainterPath()
+        self.trail_item = self.scene.addPath(
+            self.trail_path,
+            QtGui.QPen(QtGui.QColor("#ffff00"), 2)
+        )
+        self.record_trail = True
 
         # Timer nur für Uhrzeit
         self.ui_timer = QtCore.QTimer(self)
@@ -44,10 +50,19 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         draw_grid(self.scene, self.canvas)
         self.scene.addItem(create_safebox_item(self.canvas))
 
+        # Marker für Tag
         self.point_item = create_point_item()
         self.scene.addItem(self.point_item)
 
+        # Seitenleiste
         self._create_left_sidebar()
+
+        # Reset-Trail Button
+        btn = QtWidgets.QPushButton("Reset Trail")
+        btn.setStyleSheet("background-color: #222; color: #0ff;")
+        btn.clicked.connect(self.clear_trail)
+        proxy = self.scene.addWidget(btn)
+        proxy.setPos(20, 150)
 
     def _create_text_item(self, text, pos, color=STYLE["primary_text_color"], font=STYLE["body_font"]):
         item = QtWidgets.QGraphicsTextItem(text)
@@ -61,7 +76,7 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         width = WINDOW_W * LEFT_SIDEBAR_W_RATIO - 20
         self.scene.addItem(create_sidebar(10, width))
 
-        # Nur Position, Distanz, Zeit
+        # Info-Labels
         self._create_text_item("INFO", (20, 20), STYLE["secondary_text_color"], STYLE["title_font"])
         self.position_text = self._create_text_item("Position: --, --", (20, 60))
         self.distance_text = self._create_text_item("Distance: 0.00 m", (20, 90))
@@ -82,8 +97,14 @@ class SafespaceWindow(QtWidgets.QMainWindow):
             data_packet["z"],
             safespace_zone
         )
-        # 2) Punkt bewegen
+        # 2) Punkt bewegen und Pfad zeichnen
         pt = self.canvas.to_canvas_coords(self.tag.x, self.tag.y)
+        if self.record_trail:
+            if self.trail_path.isEmpty():
+                self.trail_path.moveTo(pt)
+            else:
+                self.trail_path.lineTo(pt)
+            self.trail_item.setPath(self.trail_path)
         self.point_item.setPos(pt)
 
         # 3) Sidebar-Infos aktualisieren
@@ -99,5 +120,11 @@ class SafespaceWindow(QtWidgets.QMainWindow):
     def update_time(self):
         """Aktualisiert nur die Uhrzeit-Anzeige."""
         now = time.localtime()
-        self.time_text.setPlainText(f"Time: {now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}")
+        self.time_text.setPlainText(
+            f"Time: {now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}"
+        )
 
+    def clear_trail(self):
+        """Löscht den gezeichneten Pfad."""
+        self.trail_path = QtGui.QPainterPath()
+        self.trail_item.setPath(self.trail_path)
