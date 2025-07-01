@@ -88,6 +88,7 @@ class SafespaceWindow(QtWidgets.QMainWindow):
 
     def update_tag_data(self, data_packet):
         """Reagiert auf neue Tag-Daten und aktualisiert UI."""
+        # 1) Datenmodell updaten
         self.tag.update_position(
             data_packet["x"],
             data_packet["y"],
@@ -95,20 +96,43 @@ class SafespaceWindow(QtWidgets.QMainWindow):
             safespace_zone
         )
 
+        # 2) Punkt bewegen & Farbe setzen
         pt = self.canvas.to_canvas_coords(self.tag.x, self.tag.y)
+        # Zone-Status abfragen
+        if self.tag.is_in_zone:
+            color = QtGui.QColor(STYLE["tag_safe_color"])
+            # Statusbar normal
+            self.status_bar.setStyleSheet(
+                f"background-color: #111; color: {STYLE['primary_text_color']};"
+            )
+            self.status_bar.showMessage(f"[{self.tag.id}] Innerhalb der Zone")
+        else:
+            color = QtGui.QColor(STYLE["tag_unsafe_color"])
+            # Warnung in Statusbar
+            self.status_bar.setStyleSheet(
+                "background-color: #aa0000; color: white; font: 11pt 'Consolas';"
+            )
+            self.status_bar.showMessage(f"[{self.tag.id}] WARNUNG: Außerhalb der Zone!")
+
+        # Trail aufbauen
         if self.record_trail:
             if self.trail_path.isEmpty():
                 self.trail_path.moveTo(pt)
             else:
                 self.trail_path.lineTo(pt)
             self.trail_item.setPath(self.trail_path)
+
+        # Punktitem aktualisieren
+        self.point_item.setBrush(QtGui.QBrush(color))
+        self.point_item.setPen(QtGui.QPen(color, 2))
+        effect = self.point_item.graphicsEffect()
+        effect.setColor(color)
         self.point_item.setPos(pt)
 
+        # 3) Sidebar-Infos aktualisieren
         self.position_text.setPlainText(f"Position: {self.tag.x:.2f}, {self.tag.y:.2f}")
         dist = self.tag.distance_tracker.total_distance
         self.distance_text.setPlainText(f"Distance: {dist:.2f} m")
-
-        self.status_bar.showMessage(f"[{self.tag.id}] {data_packet}")
 
     def update_time(self):
         now = time.localtime()
