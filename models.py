@@ -20,16 +20,20 @@ class Zone:
 
 class DistanceTracker:
     """Misst die kumulierte 2D-Strecke anhand sukzessiver Positionen."""
+    THRESHOLD = 0.5  # Bewegungs-Schwellenwert in Metern
+
     def __init__(self):
         self._last_pos = None  # Tuple (x, y)
         self.total_distance = 0.0  # in Metern
 
     def update(self, x: float, y: float):
-        """Hinzufügen der Distanz seit der letzten Position."""
+        """Hinzufügen der Distanz seit der letzten Position, ignoriert Mikrobewegungen."""
         if self._last_pos is not None:
             dx = x - self._last_pos[0]
             dy = y - self._last_pos[1]
-            self.total_distance += math.hypot(dx, dy)
+            dist = math.hypot(dx, dy)
+            if dist > self.THRESHOLD:
+                self.total_distance += dist
         self._last_pos = (x, y)
 
     def reset(self):
@@ -60,7 +64,7 @@ class Tag:
         # Zone
         self.is_in_zone = zone.contains(x, y)
 
-        # Streckenzähler
+        # Streckenzähler (mit Schwellenwert)
         self.distance_tracker.update(x, y)
 
 
@@ -72,4 +76,3 @@ safespace_zone = Zone(
     min_y=SAFESPACE_BORDERS["min_y"],
     max_y=SAFESPACE_BORDERS["max_y"]
 )
-
