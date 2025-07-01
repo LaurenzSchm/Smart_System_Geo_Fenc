@@ -1,7 +1,6 @@
 # serial_worker.py
 
 import time
-import re
 import serial
 from PyQt6.QtCore import QObject, pyqtSignal
 from config import SERIAL_PORT, BAUD_RATE, TARGET_TAG_ID
@@ -18,10 +17,6 @@ class SerialWorker(QObject):
     def __init__(self):
         super().__init__()
         self.running = True
-        # Einfacher Regex: sucht "91B2[<x>,<y>,<z>"
-        self._pattern = re.compile(
-            rf"{re.escape(TARGET_TAG_ID)}\[(?P<x>[-\d\.]+),(?P<y>[-\d\.]+),(?P<z>[-\d\.]+)"
-        )
 
     def run(self):
         try:
@@ -41,26 +36,23 @@ class SerialWorker(QObject):
                 # Debug: alle Rohdaten anzeigen
                 print(f"[SerialWorker] RAW: {raw_line}")
 
-                # Suchen, ob unser Tag drinsteht
-                m = self._pattern.search(raw_line)
-                if not m:
-                    continue
-
-                # Koordinaten extrahieren
-                x = float(m.group("x"))
-                y = float(m.group("y"))
-                z = float(m.group("z"))
-
-                data_packet = {"id": TARGET_TAG_ID, "x": x, "y": y, "z": z}
-
-                # Debug: nur unser Tag
-                print(f"[SerialWorker] PARSED ({TARGET_TAG_ID}): {data_packet}")
-
-                # Signal an die GUI
-                self.tag_data_received.emit(data_packet)
+                # ----- AB HIER ANPASSUNG FÜR DEIN FORMAT -----
+                # Erwarte Format: POS,0,91B2,0.47,7.73,0.29,61,x0B
+                if TARGET_TAG_ID in raw_line:
+                    parts = raw_line.split(",")
+                    try:
+                        idx = parts.index(TARGET_TAG_ID)
+                        x = float(parts[idx + 1])
+                        y = float(parts[idx + 2])
+                        z = float(parts[idx + 3])
+                        data_packet = {"id": TARGET_TAG_ID, "x": x, "y": y, "z": z}
+                        print(f"[SerialWorker] PARSED ({TARGET_TAG_ID}): {data_packet}")
+                        self.tag_data_received.emit(data_packet)
+                    except (ValueError, IndexError):
+                        continue
+                # ----- ENDE ANPASSUNG -----
 
             except (ValueError, IndexError):
-                # fehlerhafte Parses ignorieren
                 continue
             except serial.SerialException:
                 self.connection_failed.emit("Serielle Verbindung verloren.")
@@ -71,3 +63,4 @@ class SerialWorker(QObject):
 
     def stop(self):
         self.running = False
+
