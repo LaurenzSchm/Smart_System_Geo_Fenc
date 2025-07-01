@@ -1,4 +1,5 @@
 import time
+import math
 from PyQt6 import QtCore, QtGui, QtWidgets
 from config import WINDOW_W, WINDOW_H, STYLE, LEFT_SIDEBAR_W_RATIO, MAP_WIDTH, TARGET_TAG_ID
 from models import Tag, safespace_zone
@@ -11,7 +12,7 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         # Tag mit DistanceTracker
         self.tag = Tag(TARGET_TAG_ID)
         self.canvas = MapCanvas()
-        
+
         self._setup_ui()
         self._create_layout()
 
@@ -22,6 +23,11 @@ class SafespaceWindow(QtWidgets.QMainWindow):
             QtGui.QPen(QtGui.QColor("#ffff00"), 2)
         )
         self.record_trail = True
+
+        # Schwellenwert für Bewegungen (in Metern)
+        self.min_move_threshold = 0.5
+        self.last_pos = None
+        self.distance_accumulated = 0.0
 
         # Timer nur für Uhrzeit
         self.ui_timer = QtCore.QTimer(self)
@@ -97,22 +103,38 @@ class SafespaceWindow(QtWidgets.QMainWindow):
             data_packet["z"],
             safespace_zone
         )
-        # 2) Punkt bewegen und Pfad zeichnen
-        pt = self.canvas.to_canvas_coords(self.tag.x, self.tag.y)
-        if self.record_trail:
-            if self.trail_path.isEmpty():
-                self.trail_path.moveTo(pt)
-            else:
-                self.trail_path.lineTo(pt)
-            self.trail_item.setPath(self.trail_path)
-        self.point_item.setPos(pt)
+
+        # 2) Schwellenwert-basierte Distanz & Trail
+        x, y = self.tag.x, self.tag.y
+        if self.last_pos is None:
+            self.last_pos = (x, y)
+        else:
+            dx = x - self.last_pos[0]
+            dy = y - self.last_pos[1]
+            dist = math.hypot(dx, dy)
+            if dist >= self.min_move_threshold:
+                # Distanz aufsummieren
+                self.distance_accumulated += dist
+                self.last_pos = (x, y)
+                # Pfad zeichnen
+                pt = self.canvas.to_canvas_coords(x, y)
+                if self.record_trail:
+                    if self.trail_path.isEmpty():
+                        self.trail_path.moveTo(pt)
+                    else:
+                        self.trail_path.lineTo(pt)
+                    self.trail_item.setPath(self.trail_path)
+                self.point_item.setPos(pt)
+        # Falls Movement < Threshold, nur Marker aktualisieren
+        if self.distance_accumulated == 0:
+            pt = self.canvas.to_canvas_coords(x, y)
+            self.point_item.setPos(pt)
 
         # 3) Sidebar-Infos aktualisieren
         self.position_text.setPlainText(
             f"Position: {self.tag.x:.2f}, {self.tag.y:.2f}"
         )
-        dist = self.tag.distance_tracker.total_distance
-        self.distance_text.setPlainText(f"Distance: {dist:.2f} m")
+        self.distance_text.setPlainText(f"Distance: {self.distance_accumulated:.2f} m")
 
         # 4) Status-Bar mit Rohdaten
         self.status_bar.showMessage(f"[{self.tag.id}] {data_packet}")
@@ -125,6 +147,9 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         )
 
     def clear_trail(self):
-        """Löscht den gezeichneten Pfad."""
+        """Löscht den gezeichneten Pfad und setzt Distanz zurück."""
         self.trail_path = QtGui.QPainterPath()
         self.trail_item.setPath(self.trail_path)
+        self.last_pos = None
+        self.distance_accumulated = 0.0
+        self.distance_text.setPlainText("Distance: 0.00 m")
