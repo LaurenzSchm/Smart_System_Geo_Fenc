@@ -10,14 +10,13 @@ class SafespaceWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Tag mit DistanceTracker
         self.tag = Tag(TARGET_TAG_ID)
         self.canvas = MapCanvas()
         
         self._setup_ui()
         self._create_layout()
 
-        # Trail-Pfad und Aufzeichnung aktivieren
+        # Trail-Pfad initialisieren
         self.trail_path = QtGui.QPainterPath()
         self.trail_item = self.scene.addPath(
             self.trail_path,
@@ -25,7 +24,7 @@ class SafespaceWindow(QtWidgets.QMainWindow):
         )
         self.record_trail = True
 
-        # Timer nur für Uhrzeit
+        # Timer für Uhrzeit-Update
         self.ui_timer = QtCore.QTimer(self)
         self.ui_timer.timeout.connect(self.update_time)
         self.ui_timer.start(1000)
@@ -89,14 +88,13 @@ class SafespaceWindow(QtWidgets.QMainWindow):
 
     def update_tag_data(self, data_packet):
         """Reagiert auf neue Tag-Daten und aktualisiert UI."""
-        # 1) Position & Zone & Distanz updaten
         self.tag.update_position(
             data_packet["x"],
             data_packet["y"],
             data_packet["z"],
             safespace_zone
         )
-        # 2) Punkt & Trail aktualisieren
+
         pt = self.canvas.to_canvas_coords(self.tag.x, self.tag.y)
         if self.record_trail:
             if self.trail_path.isEmpty():
@@ -106,16 +104,13 @@ class SafespaceWindow(QtWidgets.QMainWindow):
             self.trail_item.setPath(self.trail_path)
         self.point_item.setPos(pt)
 
-        # 3) Sidebar-Infos aktualisieren
         self.position_text.setPlainText(f"Position: {self.tag.x:.2f}, {self.tag.y:.2f}")
         dist = self.tag.distance_tracker.total_distance
         self.distance_text.setPlainText(f"Distance: {dist:.2f} m")
 
-        # 4) Status-Bar mit Rohdaten
         self.status_bar.showMessage(f"[{self.tag.id}] {data_packet}")
 
     def update_time(self):
-        """Aktualisiert nur die Uhrzeit-Anzeige."""
         now = time.localtime()
         self.time_text.setPlainText(f"Time: {now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}")
 
