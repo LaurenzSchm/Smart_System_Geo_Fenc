@@ -1,3 +1,5 @@
+# ui/main_window.py
+
 import time
 from PyQt6 import QtCore, QtGui, QtWidgets
 from config import WINDOW_W, WINDOW_H, STYLE, LEFT_SIDEBAR_W_RATIO, MAP_WIDTH, TARGET_TAG_ID
@@ -8,7 +10,6 @@ class SafespaceWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Tag mit DistanceTracker
         self.tag = Tag(TARGET_TAG_ID)
         self.canvas = MapCanvas()
         
@@ -49,15 +50,10 @@ class SafespaceWindow(QtWidgets.QMainWindow):
     def _create_layout(self):
         draw_grid(self.scene, self.canvas)
         self.scene.addItem(create_safebox_item(self.canvas))
-
-        # Marker für Tag
         self.point_item = create_point_item()
         self.scene.addItem(self.point_item)
-
-        # Seitenleiste
         self._create_left_sidebar()
 
-        # Reset-Trail Button
         btn = QtWidgets.QPushButton("Reset Trail")
         btn.setStyleSheet("background-color: #222; color: #0ff;")
         btn.clicked.connect(self.clear_trail)
@@ -75,8 +71,6 @@ class SafespaceWindow(QtWidgets.QMainWindow):
     def _create_left_sidebar(self):
         width = WINDOW_W * LEFT_SIDEBAR_W_RATIO - 20
         self.scene.addItem(create_sidebar(10, width))
-
-        # Info-Labels
         self._create_text_item("INFO", (20, 20), STYLE["secondary_text_color"], STYLE["title_font"])
         self.position_text = self._create_text_item("Position: --, --", (20, 60))
         self.distance_text = self._create_text_item("Distance: 0.00 m", (20, 90))
@@ -90,41 +84,56 @@ class SafespaceWindow(QtWidgets.QMainWindow):
 
     def update_tag_data(self, data_packet):
         """Reagiert auf neue Tag-Daten und aktualisiert UI."""
-        # 1) Position & Zone & Distanz updaten
+        # 1. Position und Zonenstatus im Tag-Objekt aktualisieren
         self.tag.update_position(
             data_packet["x"],
             data_packet["y"],
             data_packet["z"],
             safespace_zone
         )
-        # 2) Punkt bewegen und Pfad zeichnen
+        
+        # 2. Punkt auf der Karte bewegen
         pt = self.canvas.to_canvas_coords(self.tag.x, self.tag.y)
+        self.point_item.setPos(pt)
+        
+        # Pfad zeichnen
         if self.record_trail:
             if self.trail_path.isEmpty():
                 self.trail_path.moveTo(pt)
             else:
                 self.trail_path.lineTo(pt)
             self.trail_item.setPath(self.trail_path)
-        self.point_item.setPos(pt)
 
-        # 3) Sidebar-Infos aktualisieren
-        self.position_text.setPlainText(
-            f"Position: {self.tag.x:.2f}, {self.tag.y:.2f}"
+        # 3. Punktfarbe und Statusleiste basierend auf Zonenstatus ändern
+        if self.tag.is_in_zone:
+            color = QtGui.QColor(STYLE["tag_safe_color"])
+            status_text = "● IN ZONE"
+        else:
+            color = QtGui.QColor(STYLE["tag_unsafe_color"])
+            status_text = "● OUT OF ZONE"
+        
+        self.point_item.setBrush(QtGui.QBrush(color))
+        self.point_item.setPen(QtGui.QPen(color, 2))
+        self.point_item.graphicsEffect().setColor(color)
+        
+        self.status_bar.showMessage(
+            f"[{self.tag.id}] X={self.tag.x:.2f}m Y={self.tag.y:.2f}m → {status_text}"
         )
+
+        # 4. Sidebar-Infos aktualisieren
+        self.position_text.setPlainText(f"Position: {self.tag.x:.2f}, {self.tag.y:.2f}")
         dist = self.tag.distance_tracker.total_distance
         self.distance_text.setPlainText(f"Distance: {dist:.2f} m")
-
-        # 4) Status-Bar mit Rohdaten
-        self.status_bar.showMessage(f"[{self.tag.id}] {data_packet}")
 
     def update_time(self):
         """Aktualisiert nur die Uhrzeit-Anzeige."""
         now = time.localtime()
-        self.time_text.setPlainText(
-            f"Time: {now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}"
-        )
+        self.time_text.setPlainText(f"Time: {now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}")
 
     def clear_trail(self):
-        """Löscht den gezeichneten Pfad."""
+        """Löscht den gezeichneten Pfad und setzt den Distanzzähler zurück."""
         self.trail_path = QtGui.QPainterPath()
         self.trail_item.setPath(self.trail_path)
+        self.tag.distance_tracker.reset()
+        self.distance_text.setPlainText("Distance: 0.00 m")
+        print("Trail und Distanz zurückgesetzt.")

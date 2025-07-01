@@ -7,9 +7,8 @@ from config import SERIAL_PORT, BAUD_RATE, TARGET_TAG_ID
 
 class SerialWorker(QObject):
     """
-    Liest in einem Thread von der seriellen Schnittstelle,
-    zeigt alle Rohdaten im Terminal und parst nur die Zeilen,
-    die das TARGET_TAG_ID enthalten.
+    Liest in einem Thread von der seriellen Schnittstelle und parst die Daten.
+    Verwendet eine robustere Methode, um POS-Zeilen zu identifizieren.
     """
     tag_data_received = pyqtSignal(dict)
     connection_failed = pyqtSignal(str)
@@ -19,6 +18,7 @@ class SerialWorker(QObject):
         self.running = True
 
     def run(self):
+        """ Die Hauptschleife des Workers. """
         try:
             ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
             print(f"[SerialWorker] Port {SERIAL_PORT} geöffnet @ {BAUD_RATE} Baud")
@@ -34,33 +34,32 @@ class SerialWorker(QObject):
                     continue
 
                 # Debug: alle Rohdaten anzeigen
-                print(f"[SerialWorker] RAW: {raw_line}")
+                # print(f"[SerialWorker] RAW: {raw_line}")
 
-                # ----- AB HIER ANPASSUNG FÜR DEIN FORMAT -----
-                # Erwarte Format: POS,0,91B2,0.47,7.73,0.29,61,x0B
-                if TARGET_TAG_ID in raw_line:
-                    parts = raw_line.split(",")
-                    try:
-                        idx = parts.index(TARGET_TAG_ID)
-                        x = float(parts[idx + 1])
-                        y = float(parts[idx + 2])
-                        z = float(parts[idx + 3])
-                        data_packet = {"id": TARGET_TAG_ID, "x": x, "y": y, "z": z}
-                        print(f"[SerialWorker] PARSED ({TARGET_TAG_ID}): {data_packet}")
-                        self.tag_data_received.emit(data_packet)
-                    except (ValueError, IndexError):
-                        continue
-                # ----- ENDE ANPASSUNG -----
+                # Parsen mit der split()-Methode
+                parts = raw_line.split(',')
+                # Erwartetes Format: "POS,irgendwas,TAG_ID,x,y,z,..."
+                if len(parts) >= 6 and parts[0].upper() == 'POS' and parts[2] == TARGET_TAG_ID:
+                    
+                    tag_id = parts[2]
+                    x = float(parts[3])
+                    y = float(parts[4])
+                    z = float(parts[5])
+
+                    data_packet = {"id": tag_id, "x": x, "y": y, "z": z}
+
+                    # Signal an die GUI senden
+                    self.tag_data_received.emit(data_packet)
 
             except (ValueError, IndexError):
+                # fehlerhafte oder unvollständige Zeilen ignorieren
                 continue
             except serial.SerialException:
                 self.connection_failed.emit("Serielle Verbindung verloren.")
                 break
 
         ser.close()
-        print("Serial Worker beendet.")
+        print("[SerialWorker] beendet.")
 
     def stop(self):
         self.running = False
-
